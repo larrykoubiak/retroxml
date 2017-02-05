@@ -1,13 +1,13 @@
 CC = gcc
 CXX = g++
 
-CFLAGS   += -Wall -std=c99 $(INCFLAGS)
+CFLAGS   += -g -Wall -std=c99 $(INCFLAGS)
 CXXFLAGS += -Wall $(INCFLAGS)
 # LDFLAGS  += -shared
 
 INCFLAGS = -I.
 
-SOURCES_C := retroxml.c
+SOURCES_C := retroxml.c test.c
 
 OBJECTS := $(SOURCES_C:.c=.o)
 

@@ -30,12 +30,16 @@ static void xml_token_list_append(xml_token_list_t* dst, void* item) {
 static xml_token_list_t* xml_lexer(char* src) {
 	xml_token_list_t* list = xml_token_list_create();
 	xml_token_t token = {XML_NODE_ELEMENT,NULL,1,1};
+	char in_element = 0;
+	char in_quote = 0;
 	while (*src) {
 		if(*src == '<') {
 			*src = '\0';
 			src++;
 			token.column++;
 			token.label = NULL;
+			token.node_type = XML_NODE_ELEMENT;
+			in_element = 1;
 			continue;
 		}
 		if(*src == '>') {
@@ -43,25 +47,41 @@ static xml_token_list_t* xml_lexer(char* src) {
 			src++;
 			token.column++;
 			token.label = NULL;
+			token.node_type = XML_NODE_TEXT;
+			in_element = 0;
 			continue;
 		}
-		if(*src == ' ' || *src == '\t' || *src == '\r') {
+		if((in_element==1 && in_quote==0) && (*src == ' ' || *src == '\t' || *src == '\r' || *src == '/')) {
+			token.node_type = XML_NODE_ATTRIBUTE;
+			token.label = NULL;
 			*src= '\0';
 			src++;
 			token.column++;
+			continue;
+		}
+		if(*src == '"') {
+			*src= '\0';
+			src++;
+			token.column++;
+			in_quote = !in_quote;
 			token.label = NULL;
+/*			if(in_quote) {
+				token.label = src;
+				xml_token_list_append(list, &token);
+			}*/
 			continue;
 		}
 		if (*src == '\n') {
 			*src = '\0';
 			src++;
+			while(*src==' ' || *src=='\t')
+				src++;
 			token.column = 1;
 			token.line_no++;
 			token.label = NULL;
 			continue;
 		}
 		if(!token.label) {
-			token.node_type = XML_NODE_ELEMENT;
 			token.label = src;
 			xml_token_list_append(list, &token);
 		}
@@ -77,6 +97,7 @@ int parse_xml_file(const char* path) {
 	size_t xml_file_size;
 	char* xml_buffer;
 	int i;
+	char* node_type_text;
 	xml_token_list_t* token_list = NULL;
 	xml_token_t token;
 	xml_file = fopen(path,"r");
@@ -94,7 +115,20 @@ int parse_xml_file(const char* path) {
 	token_list = xml_lexer(xml_buffer);
 	for(i=0;i<token_list->count;i++) {
 		token = token_list->tokens[i];
-		printf("Line:%i Column:%i Value:%s\n",token.line_no,token.column,token.label);
+		switch(token.node_type) {
+			case XML_NODE_ATTRIBUTE:
+				node_type_text = "ATTRIBUTE";
+				break;
+			case XML_NODE_ELEMENT:
+				node_type_text = "ELEMENT";
+				break;
+			case XML_NODE_TEXT:
+				node_type_text = "TEXT";
+				break;
+			default:
+				break;
+		}
+		printf("Line:%i Column:%i Type:%s Value:%s\n",token.line_no,token.column,node_type_text,token.label);
 	}
 	xml_token_list_free(token_list);
 	free(xml_buffer);
